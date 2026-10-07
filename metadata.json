@@ -1,0 +1,8 @@
+{
+  "name": "Green Valley Farm",
+  "description": "A bilingual (English/Arabic) farm management app for monitoring crops, livestock, weather, analytics, and harvest schedules.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
