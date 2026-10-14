@@ -20,6 +20,25 @@ import {
 import { kText } from './l10n';
 import { playSound } from './sound';
 
+export const kFarmFacts: Record<'en' | 'ar', string[]> = {
+  ar: [
+    'هل تعلم؟ الأبقار تشرب ما يصل إلى 100 لتر ماء يومياً وتنام نحو 4 ساعات فقط!',
+    'هل تعلم؟ الدجاج يستحم بالتراب الناعم لتنظيف ريشه والحفاظ على صحته!',
+    'هل تعلم؟ الدورة الزراعية بين البقوليات والخضار تعيد النيتروجين الطبيعي للتربة.',
+    'هل تعلم؟ الطماطم والذرة تزدهر في شمس الصيف المباشرة إذا رُويت بالصباح الباكر.',
+    'هل تعلم؟ صوف الخراف عازل حراري طبيعي يحميها من البرد وحرارة الصيف معاً!',
+    'هل تعلم؟ الدبال والمادة العضوية تحتفظ بالمياه 4 أضعاف وزنها لترطيب الجذور.',
+  ],
+  en: [
+    'Did you know? Dairy cows can drink up to 100 L of water a day and sleep only 4 hours!',
+    'Did you know? Chickens take dust baths to naturally clean their feathers and plumage.',
+    'Did you know? Rotating crops restores nitrogen naturally without synthetic chemicals.',
+    'Did you know? Tomatoes thrive in summer sun when watered early at dawn.',
+    'Did you know? Sheep wool is a natural thermal insulator against both cold and heat!',
+    'Did you know? Rich organic humus soil holds up to 4x its weight in moisture.',
+  ],
+};
+
 export interface ToastMessage {
   id: string;
   key: string;
@@ -32,6 +51,10 @@ interface GameContextType {
   toggleSound: () => void;
   tr: (key: string) => string;
   ready: boolean;
+  gameMode: 'realistic' | 'relaxed';
+  toggleGameMode: () => void;
+  farmFact: string;
+  nextFarmFact: () => void;
   tutorialSeen: boolean;
   closeTutorial: () => void;
   pendingLevelUp: number;
@@ -185,6 +208,32 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [ready, setReady] = useState<boolean>(false);
   const [tutorialSeen, setTutorialSeen] = useState<boolean>(false);
   const [pendingLevelUp, setPendingLevelUp] = useState<number>(0);
+
+  // Difficulty & Experience mode: 'realistic' (detailed agronomy) or 'relaxed' (kid/family friendly)
+  const [gameMode, setGameMode] = useState<'realistic' | 'relaxed'>(() => {
+    try {
+      const saved = localStorage.getItem('game_difficulty');
+      if (saved === 'realistic' || saved === 'relaxed') return saved;
+    } catch (_) {}
+    return 'realistic';
+  });
+
+  const toggleGameMode = useCallback(() => {
+    setGameMode((prev) => {
+      const next = prev === 'realistic' ? 'relaxed' : 'realistic';
+      try {
+        localStorage.setItem('game_difficulty', next);
+      } catch (_) {}
+      return next;
+    });
+  }, []);
+
+  const [factIndex, setFactIndex] = useState(0);
+  const nextFarmFact = useCallback(() => {
+    setFactIndex((prev) => (prev + 1) % (kFarmFacts[lang]?.length || 6));
+  }, [lang]);
+
+  const farmFact = kFarmFacts[lang]?.[factIndex] || kFarmFacts.en[0];
 
   // Time clock
   const [clock, setClock] = useState<number>(0);
@@ -545,7 +594,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const windmillPump =
         effectiveWeather === 'rain' ? 1.4 : effectiveWeather === 'cloudy' ? 0.8 : 0.4;
       setTank((prevTank) => {
-        let t = prevTank + windmillPump;
+        let t = prevTank + (gameMode === 'relaxed' ? windmillPump * 1.5 : windmillPump);
         if (effectiveWeather === 'rain') {
           t += (curSeason === 3 ? 3 : 6);
         }
@@ -555,7 +604,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const seasonDrain = [1.0, 1.5, 1.0, 0.6][curSeason];
       const baseDrain =
         effectiveWeather === 'sunny' ? 0.025 : effectiveWeather === 'cloudy' ? 0.015 : 0.0;
-      const drain = baseDrain * seasonDrain;
+      // In relaxed mode, drain is much slower to make it friendly for young players
+      const drain = (gameMode === 'relaxed' ? baseDrain * 0.4 : baseDrain) * seasonDrain;
 
       // 4. Plots simulation
       setPlots((prevPlots) => {
@@ -585,12 +635,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const c = p.crop;
           if (c === null) {
             fertility = Math.min(1.0, fertility + 0.004); // Fallow recovers
-          } else if (prog < 1 && w > 0) {
+          } else if (prog < 1 && (w > 0 || gameMode === 'relaxed')) {
             const def = kCrops[c];
-            const seasonF = def.seasons.includes(curSeason) ? 1.0 : 0.3;
+            const seasonF = def.seasons.includes(curSeason) ? 1.0 : (gameMode === 'relaxed' ? 0.7 : 0.3);
             const soilF = 0.5 + 0.5 * fertility;
-            const waterF = w > 0.5 ? 1.0 : 0.5;
-            prog = Math.min(1.0, prog + (waterF * seasonF * soilF) / def.growSeconds);
+            const waterF = w > 0.5 ? 1.0 : (w > 0 ? 0.5 : 0.3);
+            // Crop rotation bonus in realistic mode:
+            const isRotated = p.lastCrop !== null && p.lastCrop !== kCropIndices[c];
+            const rotationBonus = (gameMode === 'realistic' && isRotated) ? 1.2 : 1.0;
+            prog = Math.min(1.0, prog + (waterF * seasonF * soilF * rotationBonus) / def.growSeconds);
           }
 
           return { ...p, water: w, progress: prog, fertility };
@@ -602,6 +655,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         return nextPlots;
       });
+
+      // Ambient sounds triggered during simulation (rain or birds)
+      ticksRef.current = (ticksRef.current + 1) % 10000;
+      if (soundOn) {
+        if (effectiveWeather === 'rain' && ticksRef.current % 18 === 0) {
+          playSound('rain_ambient', true);
+        } else if (effectiveWeather === 'sunny' && darkness < 0.25 && ticksRef.current % 36 === 0) {
+          playSound('birds', true);
+        }
+      }
 
       // 5. Pests event tick
       if (event === 'pests' && Math.random() < 0.02) {
@@ -1285,6 +1348,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleSound,
         tr,
         ready,
+        gameMode,
+        toggleGameMode,
+        farmFact,
+        nextFarmFact,
         tutorialSeen,
         closeTutorial,
         pendingLevelUp,

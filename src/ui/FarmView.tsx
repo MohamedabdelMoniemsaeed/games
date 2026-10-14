@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useGame, SPRAY_COST, FERTILIZER_COST } from '../game/GameContext';
-import { kCrops, kEmoji } from '../game/constants';
+import { kCrops, kEmoji, kCropIndices } from '../game/constants';
 import { CropType } from '../game/models';
 import { Panel, Bar } from './Common';
 import { GroundCanvas, CropCanvas, WeatherOverlay, DayNightOverlay } from './painters';
@@ -41,6 +41,8 @@ export const FarmView: React.FC = () => {
     siloLevel,
     sprinkler,
     waterAll,
+    harvest,
+    lang,
     showToast,
     villageGrantBanner,
     dismissGrantBanner,
@@ -101,6 +103,21 @@ export const FarmView: React.FC = () => {
   const handleWaterAll = () => {
     const err = waterAll();
     showToast(err);
+  };
+
+  const readyPlots = plots.filter((p) => p.crop !== null && p.progress >= 1);
+
+  const handleHarvestAll = () => {
+    let harvested = 0;
+    plots.forEach((p, idx) => {
+      if (p.crop && p.progress >= 1) {
+        const err = harvest(idx);
+        if (!err) harvested++;
+      }
+    });
+    if (harvested > 0) {
+      showToast(lang === 'ar' ? `تم حصاد ${harvested} أحواض بنجاح!` : `Harvested ${harvested} plots!`);
+    }
   };
 
   const handleSpray = () => {
@@ -315,13 +332,25 @@ export const FarmView: React.FC = () => {
       </div>
 
       {/* 5. Action Buttons & Rotation Tip */}
-      <button
-        onClick={handleWaterAll}
-        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#2F7D4E] text-white font-bold text-sm shadow-md hover:bg-[#286b43] active:scale-[0.99] transition cursor-pointer"
-      >
-        <Droplets className="w-4 h-4" />
-        <span>{tr('waterAll')}</span>
-      </button>
+      <div className="flex gap-2">
+        {readyPlots.length > 0 && (
+          <button
+            onClick={handleHarvestAll}
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-amber-500 text-white font-bold text-sm shadow-md hover:bg-amber-600 active:scale-[0.99] transition cursor-pointer animate-pulse"
+          >
+            <span>🌾</span>
+            <span>{lang === 'ar' ? `حصاد الكل (${readyPlots.length})` : `Harvest All (${readyPlots.length})`}</span>
+          </button>
+        )}
+
+        <button
+          onClick={handleWaterAll}
+          className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#2F7D4E] text-white font-bold text-sm shadow-md hover:bg-[#286b43] active:scale-[0.99] transition cursor-pointer"
+        >
+          <Droplets className="w-4 h-4" />
+          <span>{tr('waterAll')}</span>
+        </button>
+      </div>
 
       <p className="text-[11px] text-[#7B857E] text-center leading-relaxed">
         {tr('rotationTip')}
@@ -559,7 +588,7 @@ const PlotInfoModal: React.FC<{
   plotIndex: number;
   onClose: () => void;
 }> = ({ plotIndex, onClose }) => {
-  const { plots, tr, inSeason, fertilize, removeCrop, showToast } = useGame();
+  const { plots, tr, inSeason, fertilize, removeCrop, showToast, lang } = useGame();
   const p = plots[plotIndex];
   const cropDef = p.crop ? kCrops[p.crop] : null;
 
@@ -574,65 +603,202 @@ const PlotInfoModal: React.FC<{
     onClose();
   };
 
+  // Agronomic calculations
+  const moisturePct = Math.round(p.water * 100);
+  const moistureStatus =
+    p.water > 0.65
+      ? { label: lang === 'ar' ? 'رطوبة مثالية 💧' : 'Optimal Moisture 💧', color: 'text-blue-600 bg-blue-50' }
+      : p.water > 0.25
+      ? { label: lang === 'ar' ? 'رطوبة معتدلة 🌱' : 'Moderate Moisture 🌱', color: 'text-amber-700 bg-amber-50' }
+      : { label: lang === 'ar' ? 'تربة جافة 🏜️' : 'Dry Soil 🏜️', color: 'text-red-700 bg-red-50' };
+
+  const stageInfo = (() => {
+    if (!p.crop) {
+      return {
+        title: lang === 'ar' ? 'تربة محروثة جاهزة' : 'Tilled Fallow Soil',
+        desc: lang === 'ar' ? 'التربة مهيأة وجاهزة لاستقبال البذور.' : 'Soil is prepared and aerated for planting.',
+      };
+    }
+    if (p.progress < 0.15) {
+      return {
+        title: lang === 'ar' ? 'مرحلة الإنبات وبزوغ الجذور 🌱' : 'Germination & Radicle Stage 🌱',
+        desc: lang === 'ar' ? 'البذرة امتصت الرطوبة وبدأت الجذور الأولى بالتشكل.' : 'Seed absorbed water and radicle root is anchoring.',
+      };
+    }
+    if (p.progress < 0.5) {
+      return {
+        title: lang === 'ar' ? 'النمو الخضري وتفرع الأوراق 🌿' : 'Vegetative Foliage Stage 🌿',
+        desc: lang === 'ar' ? 'تكوين السيقان والأوراق الخضراء والبناء الضوئي النشط.' : 'Vigorous stem and leaf canopy photosynthesis.',
+      };
+    }
+    if (p.progress < 0.85) {
+      return {
+        title: lang === 'ar' ? 'مرحلة الإزهار وتكوين الثمار 🌼' : 'Flowering & Budding Stage 🌼',
+        desc: lang === 'ar' ? 'تفتح الأزهار وبدء عقد المحصول.' : 'Blossoms opening and fruit setting.',
+      };
+    }
+    return {
+      title: lang === 'ar' ? 'النضج الكامل وجاهزية الحصاد 🍅' : 'Full Ripeness & Harvest Ready 🍅',
+      desc: lang === 'ar' ? 'اكتملت القيمة الغذائية والحجم، المحصول جاهز للقطف.' : 'Optimal Brix sugar and firmness, ready to harvest.',
+    };
+  })();
+
+  const estimatedYieldKg = (() => {
+    if (!p.crop) return 0;
+    const baseKg: Record<CropType, number> = {
+      tomato: 2.2,
+      lettuce: 1.1,
+      corn: 3.4,
+      carrot: 1.6,
+      strawberry: 0.8,
+    };
+    const mult = p.fertility >= 0.8 ? 2 : 1;
+    return (baseKg[p.crop] * mult).toFixed(1);
+  })();
+
+  const isRotated = p.lastCrop !== null && p.crop && p.lastCrop !== kCropIndices[p.crop];
+  const isMonoculture = p.lastCrop !== null && p.crop && p.lastCrop === kCropIndices[p.crop];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs animate-fade-in p-0 sm:p-4">
-      <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl border border-gray-100 text-[#1E2A22] space-y-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-0 sm:p-4">
+      <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl border border-gray-100 text-[#1E2A22] space-y-3.5 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
         <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-          <h3 className="text-base font-extrabold flex items-center gap-2">
-            <span>{cropDef ? cropDef.emoji : '🟫'}</span>
-            <span>{p.crop ? tr(p.crop) : tr('soil')}</span>
-          </h3>
-          <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{cropDef ? cropDef.emoji : '🟫'}</span>
+            <div>
+              <h3 className="text-base font-extrabold leading-tight">
+                {p.crop ? tr(p.crop) : tr('soil')}
+              </h3>
+              <p className="text-[10px] text-[#7B857E]">
+                {lang === 'ar' ? `حوض زراعي رقم #${plotIndex + 1}` : `Field Plot #${plotIndex + 1}`}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {p.crop && (
-          <div className="text-xs font-semibold text-[#7B857E]">
-            {inSeason(p.crop) ? `✔ ${tr('inSeason')}` : `✖ ${tr('offSeason')}`}
+        {/* Biological Stage */}
+        <div className="rounded-2xl bg-gray-50/80 p-3 border border-gray-100 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#1E2A22]">{stageInfo.title}</span>
+            {p.crop && (
+              <span className="text-xs font-black text-[#2F7D4E]" dir="ltr">
+                {Math.round(p.progress * 100)}%
+              </span>
+            )}
           </div>
-        )}
+          <p className="text-[11px] text-[#7B857E] leading-relaxed">{stageInfo.desc}</p>
+          {p.crop && (
+            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-1">
+              <div
+                className="bg-[#2F7D4E] h-full transition-all duration-300"
+                style={{ width: `${Math.round(p.progress * 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
 
-        {/* Fertility Bar */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-bold">
-            <span>{tr('fertility')}</span>
-            <bdi dir="ltr">{Math.round(p.fertility * 100)}%</bdi>
+        {/* Moisture & Soil Telemetry Grid */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {/* Soil Moisture */}
+          <div className="rounded-2xl border border-gray-100 p-2.5 bg-white space-y-1">
+            <div className="flex items-center justify-between text-[#7B857E] font-medium text-[11px]">
+              <span>{lang === 'ar' ? 'رطوبة التربة' : 'Soil Moisture'}</span>
+              <span className="font-bold text-[#1E2A22]" dir="ltr">{moisturePct}%</span>
+            </div>
+            <Bar value={p.water} color="#3E8ED0" height={6} />
+            <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-md ${moistureStatus.color}`}>
+              {moistureStatus.label}
+            </span>
           </div>
-          <Bar value={p.fertility} color="#2F7D4E" height={8} />
-          {p.fertility >= 0.8 && (
-            <p className="text-[11px] text-[#2F7D4E] font-bold">
-              🌟 Rich soil: gives DOUBLE harvest!
+
+          {/* Expected Yield */}
+          <div className="rounded-2xl border border-gray-100 p-2.5 bg-white space-y-1">
+            <span className="text-[#7B857E] font-medium text-[11px] block">
+              {lang === 'ar' ? 'الإنتاج المتوقع' : 'Estimated Yield'}
+            </span>
+            <div className="text-sm font-black text-[#2F7D4E] mt-0.5" dir="ltr">
+              {p.crop ? `${estimatedYieldKg} kg` : '--'}
+            </div>
+            <span className="text-[10px] text-[#7B857E]">
+              {p.fertility >= 0.8
+                ? (lang === 'ar' ? '🌟 مضاعف بالسماد' : '🌟 Doubled (Fertile)')
+                : (lang === 'ar' ? 'إنتاج قياسي' : 'Standard Yield')}
+            </span>
+          </div>
+        </div>
+
+        {/* Fertility & Organic Compost */}
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3 space-y-1.5">
+          <div className="flex justify-between text-xs font-bold">
+            <span className="text-[#2F7D4E]">
+              {lang === 'ar' ? 'خصوبة النيتروجين والدبال' : 'NPK Organic Fertility'}
+            </span>
+            <span className="font-black text-[#2F7D4E]" dir="ltr">
+              {Math.round(p.fertility * 100)}%
+            </span>
+          </div>
+          <Bar value={p.fertility} color="#2F7D4E" height={7} />
+          {p.fertility >= 0.8 ? (
+            <p className="text-[10px] text-[#2F7D4E] font-bold">
+              {lang === 'ar' ? '✨ تربة دبالية غنية: تمنح محصولاً مضاعفاً عند الحصاد!' : '✨ Rich humus soil: yields double harvest!'}
+            </p>
+          ) : (
+            <p className="text-[10px] text-[#7B857E]">
+              {lang === 'ar' ? 'أضف السماد العضوي لرفع الخصوبة لـ 100% ومضاعفة الناتج.' : 'Add compost to boost fertility to 100% for 2x yield.'}
             </p>
           )}
         </div>
 
+        {/* Crop Rotation Status */}
+        {p.crop && (
+          <div className="text-[11px] rounded-xl p-2.5 bg-amber-50/60 border border-amber-200/50 text-amber-900 leading-relaxed">
+            {isRotated ? (
+              <span>
+                {lang === 'ar'
+                  ? '🌱 دورة زراعية متوازنة: تبديل المحصول حافظ على توازن معادن التربة ومنع انتشار الآفات.'
+                  : '🌱 Balanced Crop Rotation: Rotating crops maintains soil nutrition balance.'}
+              </span>
+            ) : isMonoculture ? (
+              <span>
+                {lang === 'ar'
+                  ? '⚠️ زراعة أحادية متكررة: زراعة نفس الصنف مرتين تستنزف معادن محددة. يفضل التبديل بعد الحصاد.'
+                  : '⚠️ Monoculture: Re-planting the same crop exhausts specific soil minerals.'}
+              </span>
+            ) : (
+              <span>
+                {lang === 'ar'
+                  ? '💡 نصيحة زراعية: تبديل المحاصيل دورياً بين البقوليات والخضار الجذرية يحافظ على توازن التربة.'
+                  : '💡 Agronomic tip: Rotating between leafy greens and roots replenishes nitrogen naturally.'}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-2 pt-1">
           <button
             onClick={handleFertilize}
-            className="flex-1 py-2 px-3 rounded-xl bg-[#E8F3E9] text-[#2F7D4E] font-bold text-xs hover:bg-[#d5ebd7] active:scale-95 transition cursor-pointer"
+            className="flex-1 py-2.5 px-3 rounded-xl bg-[#2F7D4E] text-white font-bold text-xs hover:bg-[#25633E] active:scale-95 transition cursor-pointer shadow-sm"
           >
             <span className="inline-flex items-center gap-1" dir="ltr">
               <span>{tr('fertilize')}</span>
-              <span>{FERTILIZER_COST}</span>
-              <span>🪙</span>
+              <span>({FERTILIZER_COST} 🪙)</span>
             </span>
           </button>
 
           {p.crop && (
             <button
               onClick={handleRemove}
-              className="py-2 px-3 rounded-xl border border-red-200 text-red-600 font-bold text-xs hover:bg-red-50 active:scale-95 transition cursor-pointer"
+              className="py-2.5 px-3 rounded-xl border border-red-200 text-red-600 font-bold text-xs hover:bg-red-50 active:scale-95 transition cursor-pointer"
             >
               {tr('removeCrop')}
             </button>
           )}
         </div>
-
-        <p className="text-[11px] text-[#7B857E] leading-relaxed pt-2 border-t border-gray-100">
-          {tr('rotationTip')}
-        </p>
       </div>
     </div>
   );

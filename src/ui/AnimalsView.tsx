@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame, HEAL_COST } from '../game/GameContext';
 import { kAnimals, kEmoji } from '../game/constants';
 import { AnimalType } from '../game/models';
+import { playSound } from '../game/sound';
 import { Panel, Bar } from './Common';
 import { RealisticAnimal } from './AnimalSprites';
 import {
@@ -21,6 +22,10 @@ export const AnimalsView: React.FC = () => {
     seasonFeedPrice,
     buyFeed,
     buyAnimal,
+    feed,
+    collect,
+    soundOn,
+    lang,
     showToast,
   } = useGame();
 
@@ -32,6 +37,39 @@ export const AnimalsView: React.FC = () => {
   const handleBuyFeed = (bulk: boolean) => {
     const err = buyFeed(bulk);
     showToast(err);
+  };
+
+  const hasHungry = animals.some((a) => a.fullness < 0.9);
+  const hasCollectable = animals.some((a) => a.stored > 0);
+
+  const handleFeedAll = () => {
+    let fedCount = 0;
+    animals.forEach((a, i) => {
+      if (a.fullness < 0.9) {
+        const res = feed(i);
+        if (res === 'fed') fedCount++;
+      }
+    });
+    if (fedCount > 0) {
+      playSound('feed', soundOn);
+      showToast(lang === 'ar' ? `تم إطعام ${fedCount} من الحيوانات!` : `Fed ${fedCount} animals!`);
+    } else {
+      showToast(lang === 'ar' ? 'جميع الحيوانات شبعانة!' : 'All animals are fed!');
+    }
+  };
+
+  const handleCollectAll = () => {
+    let collectedCount = 0;
+    animals.forEach((a, i) => {
+      if (a.stored > 0) {
+        const res = collect(i);
+        if (!res) collectedCount += a.stored;
+      }
+    });
+    if (collectedCount > 0) {
+      playSound('collect', soundOn);
+      showToast(lang === 'ar' ? `تم جمع الإنتاج بنجاح!` : `Collected products!`);
+    }
   };
 
   const cost1 = seasonFeedPrice;
@@ -86,11 +124,31 @@ export const AnimalsView: React.FC = () => {
       {/* 2. Realistic Compact Pasture Scene with Barn & Troughs */}
       <RealisticPastureScene />
 
-      {/* 3. Pen Capacity Header */}
-      <div className="flex items-center justify-between pt-1">
+      {/* 3. Pen Capacity Header & Quick Actions for All Ages */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
         <h2 className="text-base font-extrabold text-[#1E2A22]">
           {tr('pen')} <bdi dir="ltr">{animals.length} / {penSize}</bdi>
         </h2>
+
+        <div className="flex items-center gap-1.5">
+          {hasHungry && (
+            <button
+              onClick={handleFeedAll}
+              className="py-1 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer"
+            >
+              <span>🌾 {lang === 'ar' ? 'إطعام الكل' : 'Feed All'}</span>
+            </button>
+          )}
+
+          {hasCollectable && (
+            <button
+              onClick={handleCollectAll}
+              className="py-1 px-3 rounded-xl bg-[#2F7D4E] hover:bg-[#25633E] active:scale-95 text-white text-xs font-bold transition shadow-xs flex items-center gap-1 cursor-pointer animate-pulse"
+            >
+              <span>🧺 {lang === 'ar' ? 'جمع الكل' : 'Collect All'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 4. Owned Animals List */}
@@ -174,7 +232,7 @@ interface AnimalAgent {
 }
 
 const RealisticPastureScene: React.FC = () => {
-  const { animals, feedTrough, tank, darkness, weather, tr } = useGame();
+  const { animals, feedTrough, tank, darkness, weather, tr, soundOn } = useGame();
   const [animTime, setAnimTime] = useState(0);
 
   // Sleeping or sheltered condition: night or rain
@@ -206,7 +264,7 @@ const RealisticPastureScene: React.FC = () => {
       const dt = Math.min(0.05, (stamp - lastStamp) / 1000);
       lastStamp = stamp;
 
-      setAnimTime((t) => t + dt);
+      setAnimTime((t: number) => t + dt);
 
       // In clear daytime: natural wandering, grazing, and seeking troughs
       if (!shouldShelter) {
@@ -403,7 +461,14 @@ const RealisticPastureScene: React.FC = () => {
           return (
             <div
               key={i}
-              className="absolute pointer-events-none transition-all duration-75"
+              onClick={() =>
+                playSound(
+                  a.type === 'cow' ? 'moo' : a.type === 'chicken' ? 'cluck' : 'baa',
+                  soundOn
+                )
+              }
+              title={tr(a.type)}
+              className="absolute pointer-events-auto cursor-pointer select-none transition-transform active:scale-125 hover:brightness-110"
               style={{
                 left: `${agent.x}%`,
                 top: `${agent.y}%`,
@@ -437,7 +502,7 @@ const RealisticPastureScene: React.FC = () => {
 // Individual Animal Management Card
 // -------------------------------------------------------------
 const AnimalCard: React.FC<{ index: number }> = ({ index }) => {
-  const { animals, tr, feed, heal, collect, showToast } = useGame();
+  const { animals, tr, feed, heal, collect, showToast, soundOn, lang } = useGame();
   const a = animals[index];
   if (!a) return null;
 
@@ -451,7 +516,32 @@ const AnimalCard: React.FC<{ index: number }> = ({ index }) => {
     return tr('lamb');
   })();
 
+  const breedName = (() => {
+    if (a.type === 'cow') return lang === 'ar' ? 'أبقار هولشتاين (حلوب)' : 'Holstein Dairy Cow';
+    if (a.type === 'chicken') return lang === 'ar' ? 'دجاج بلدي بياض' : 'Free-Range Brown Layer';
+    return lang === 'ar' ? 'خراف ميرينو (صوف)' : 'Merino Fine Wool';
+  })();
+
+  const earTag = `#${100 + index + 1}`;
+
+  const weightKg = (() => {
+    if (a.type === 'cow') return Math.round(160 + a.growth * 380);
+    if (a.type === 'chicken') return (0.4 + a.growth * 2.2).toFixed(1);
+    return Math.round(20 + a.growth * 50);
+  })();
+
+  const dailyOutput = (() => {
+    if (a.type === 'cow') return lang === 'ar' ? '16 لتر حليب/يوم' : '16 L milk/day';
+    if (a.type === 'chicken') return lang === 'ar' ? '1 بيضة طازجة/يوم' : '1 fresh egg/day';
+    return lang === 'ar' ? '3 كجم صوف ناعم' : '3 kg wool/season';
+  })();
+
+  const handlePlayVoice = () => {
+    playSound(a.type === 'cow' ? 'moo' : a.type === 'chicken' ? 'cluck' : 'baa', soundOn);
+  };
+
   const handleFeed = () => {
+    playSound(a.type === 'cow' ? 'moo' : a.type === 'chicken' ? 'cluck' : 'baa', soundOn);
     const res = feed(index);
     showToast(res);
   };
@@ -462,6 +552,7 @@ const AnimalCard: React.FC<{ index: number }> = ({ index }) => {
   };
 
   const handleCollect = () => {
+    playSound('collect', soundOn);
     const res = collect(index);
     showToast(res);
   };
@@ -469,10 +560,15 @@ const AnimalCard: React.FC<{ index: number }> = ({ index }) => {
   const feedNeeded = a.type === 'chicken' ? 1 : 2;
 
   return (
-    <Panel className="space-y-3">
+    <Panel className="space-y-3 p-3.5 bg-white border border-gray-100 rounded-3xl shadow-sm hover:shadow-md transition">
       {/* Top info and detailed realistic animal avatar */}
       <div className="flex items-center gap-3">
-        <div className="w-16 h-14 flex items-center justify-center bg-gray-50/80 rounded-2xl p-1 border border-gray-100 shadow-2xs">
+        {/* Clickable animal sprite that moos/clucks/baas */}
+        <button
+          onClick={handlePlayVoice}
+          title={lang === 'ar' ? 'اضغط لسماع صوت الحيوان' : 'Tap to hear animal sound'}
+          className="w-18 h-16 flex items-center justify-center bg-emerald-50/60 rounded-2xl p-1.5 border border-emerald-100/80 shadow-2xs cursor-pointer hover:bg-emerald-100/60 active:scale-95 transition relative group"
+        >
           <RealisticAnimal
             type={a.type}
             growth={a.growth}
@@ -484,61 +580,79 @@ const AnimalCard: React.FC<{ index: number }> = ({ index }) => {
             facingRight={true}
             isSleeping={false}
           />
-        </div>
+          <span className="absolute -bottom-1 -right-1 text-xs bg-white rounded-full p-0.5 shadow-2xs border border-gray-200">
+            🔊
+          </span>
+        </button>
 
-        <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-extrabold text-[#1E2A22]">
-              {displayName}
-            </span>
-            {!isAdult && (
-              <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-black text-[#1E2A22]">{displayName}</span>
+              <span className="text-[10px] text-gray-400 font-mono" dir="ltr">{earTag}</span>
+            </div>
+            {!isAdult ? (
+              <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
                 🍼 {tr('young')}
+              </span>
+            ) : (
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
+                {dailyOutput}
               </span>
             )}
           </div>
 
-          {/* Growth bar if young */}
-          {!isAdult && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs">🍼</span>
-              <div className="flex-1">
-                <Bar value={a.growth} color="#8E6BBF" height={6} />
+          <p className="text-[11px] text-[#7B857E] font-medium leading-none">
+            {breedName} · <span dir="ltr">{weightKg} kg</span>
+          </p>
+
+          {/* Progress / Status bars */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            {/* Fullness bar */}
+            <div className="space-y-0.5">
+              <div className="flex justify-between text-[10px] font-bold text-gray-600">
+                <span>🍽️ {lang === 'ar' ? 'الشبع' : 'Feed'}</span>
+                <span dir="ltr">{Math.round(a.fullness * 100)}%</span>
               </div>
+              <Bar value={a.fullness} color="#E6A23C" height={5} />
+            </div>
+
+            {/* Health bar */}
+            <div className="space-y-0.5">
+              <div className="flex justify-between text-[10px] font-bold text-gray-600">
+                <span>❤️ {tr('health')}</span>
+                <span dir="ltr">{Math.round(a.health * 100)}%</span>
+              </div>
+              <Bar value={a.health} color="#E53935" height={5} />
+            </div>
+          </div>
+
+          {/* Growth or Production bar */}
+          {!isAdult ? (
+            <div className="space-y-0.5 pt-0.5">
+              <div className="flex justify-between text-[10px] font-bold text-purple-700">
+                <span>🍼 {lang === 'ar' ? 'معدل النمو' : 'Growth'}</span>
+                <span dir="ltr">{Math.round(a.growth * 100)}%</span>
+              </div>
+              <Bar value={a.growth} color="#8E6BBF" height={5} />
+            </div>
+          ) : (
+            <div className="space-y-0.5 pt-0.5">
+              <div className="flex justify-between text-[10px] font-bold text-[#2F7D4E]">
+                <span>{kEmoji[def.product]} {tr(def.product)}</span>
+                <span dir="ltr">{a.stored > 0 ? (lang === 'ar' ? `جاهز (${a.stored})` : `Ready (${a.stored})`) : `${Math.round(a.progress * 100)}%`}</span>
+              </div>
+              <Bar value={a.stored > 0 ? 1 : a.progress} color="#2F7D4E" height={5} />
             </div>
           )}
-
-          {/* Fullness bar */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs">🍽️</span>
-            <div className="flex-1">
-              <Bar value={a.fullness} color="#E6A23C" height={6} />
-            </div>
-          </div>
-
-          {/* Health bar */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs">❤️</span>
-            <div className="flex-1">
-              <Bar value={a.health} color="#E53935" height={6} />
-            </div>
-          </div>
-
-          {/* Product progress bar */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs">{kEmoji[def.product]}</span>
-            <div className="flex-1">
-              <Bar value={a.progress} color="#2F7D4E" height={6} />
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Action buttons: Feed, Collect, Heal */}
+      {/* Action buttons: Feed, Collect, Heal with large touch targets */}
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleFeed}
-          className="flex-1 py-2 px-3 rounded-xl border border-amber-300 bg-amber-50/60 hover:bg-amber-100/60 active:scale-98 text-xs font-bold text-[#1E2A22] transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+          className="flex-1 min-h-[42px] py-2 px-3 rounded-2xl border border-amber-300 bg-amber-50 hover:bg-amber-100 active:scale-98 text-xs font-bold text-[#1E2A22] transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
         >
           <span>🌾 {tr('feed')}</span>
           <span className="text-[11px] text-amber-800 font-semibold" dir="ltr">
@@ -548,30 +662,27 @@ const AnimalCard: React.FC<{ index: number }> = ({ index }) => {
 
         <button
           onClick={handleCollect}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
+          className={`flex-1 min-h-[42px] py-2 px-3 rounded-2xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center justify-center ${
             a.stored > 0
-              ? 'bg-[#2F7D4E] text-white hover:bg-[#286b43] active:scale-98 animate-pulse'
+              ? 'bg-[#2F7D4E] text-white hover:bg-[#25633E] active:scale-98 animate-pulse'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}
           disabled={a.stored === 0}
         >
-          <span className="inline-flex items-center gap-1" dir="ltr">
+          <span className="inline-flex items-center gap-1.5" dir="ltr">
             <span>{tr('collect')}</span>
             <span>{kEmoji[def.product]}</span>
-            <span>×{a.stored}</span>
+            {a.stored > 0 && <span className="font-black">×{a.stored}</span>}
           </span>
         </button>
 
         {a.health < 0.7 && (
           <button
             onClick={handleHeal}
-            className="py-2 px-3 rounded-xl bg-red-100 text-red-700 font-bold text-xs hover:bg-red-200 active:scale-95 transition cursor-pointer"
+            className="min-h-[42px] py-2 px-3 rounded-2xl bg-red-100 text-red-700 font-bold text-xs hover:bg-red-200 active:scale-95 transition cursor-pointer flex items-center gap-1"
           >
-            <span className="inline-flex items-center gap-1" dir="ltr">
-              <span>💊</span>
-              <span>{HEAL_COST}</span>
-              <span>🪙</span>
-            </span>
+            <span>💊</span>
+            <span dir="ltr">{HEAL_COST} 🪙</span>
           </button>
         )}
       </div>

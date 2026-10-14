@@ -14,9 +14,13 @@ import {
   Sprout,
   CloudSun,
   Sparkles,
+  Gamepad2,
 } from 'lucide-react';
 
-export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppShell: React.FC<{
+  children: React.ReactNode;
+  onSwitchToGame?: () => void;
+}> = ({ children, onSwitchToGame }) => {
   const {
     t,
     screen,
@@ -64,6 +68,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
           {/* Header Quick Controls */}
           <div className="flex items-center gap-2">
+            {/* Play Game Switcher */}
+            {onSwitchToGame && (
+              <button
+                onClick={onSwitchToGame}
+                title={locale === 'ar' ? 'لعبة المزرعة التفاعلية' : 'Play Interactive Farm Game'}
+                className="flex items-center gap-1.5 rounded-full bg-[#E8F3E9] px-2.5 py-1.5 text-xs font-bold text-[#2F7D4E] hover:bg-[#d5ebd7] transition active:scale-95 dark:bg-[#2F7D4E]/25 dark:text-[#9FCB88]"
+              >
+                <Gamepad2 className="h-3.5 w-3.5 text-[#2F7D4E] dark:text-[#9FCB88]" />
+                <span className="hidden sm:inline">{locale === 'ar' ? 'اللعبة' : 'Game'}</span>
+              </button>
+            )}
+
             {/* AI Assistant Button */}
             <button
               onClick={() => setIsAssistantOpen(true)}

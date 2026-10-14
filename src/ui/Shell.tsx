@@ -7,7 +7,9 @@ import { OrdersView } from './OrdersView';
 import { QuestsView } from './QuestsView';
 import { ShopView } from './ShopView';
 
-export const Shell: React.FC = () => {
+export const Shell: React.FC<{ onSwitchToDashboard?: () => void }> = ({
+  onSwitchToDashboard,
+}) => {
   const {
     tr,
     toasts,
@@ -45,7 +47,7 @@ export const Shell: React.FC = () => {
     <div className="min-h-screen bg-[#F6F4EA] text-[#1E2A22] flex flex-col font-sans transition-colors duration-200">
       {/* Top HUD */}
       <header className="sticky top-0 z-30 bg-[#F6F4EA]/90 backdrop-blur-md border-b border-[#E8EBE5]/60 shadow-2xs">
-        <Hud />
+        <Hud onSwitchToDashboard={onSwitchToDashboard} />
       </header>
 
       {/* Main Content Area */}

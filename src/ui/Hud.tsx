@@ -3,7 +3,9 @@ import { useGame } from '../game/GameContext';
 import { Pill, Bar, WatchAdModal } from './Common';
 import { Video } from 'lucide-react';
 
-export const Hud: React.FC = () => {
+export const Hud: React.FC<{ onSwitchToDashboard?: () => void }> = ({
+  onSwitchToDashboard,
+}) => {
   const {
     tr,
     lang,
@@ -16,6 +18,10 @@ export const Hud: React.FC = () => {
     capacity,
     rewardRefill,
     showToast,
+    gameMode,
+    toggleGameMode,
+    farmFact,
+    nextFarmFact,
   } = useGame();
 
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
@@ -66,6 +72,39 @@ export const Hud: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Game Mode Switcher: Realistic vs Relaxed */}
+            <button
+              onClick={toggleGameMode}
+              title={
+                gameMode === 'realistic'
+                  ? (lang === 'ar' ? 'النمط الحالي: واقعي احترافي (اضغط للتبديل للنمط العائلي المريح)' : 'Mode: Realistic Simulation (Tap for Relaxed)')
+                  : (lang === 'ar' ? 'النمط الحالي: مريح عائلي (اضغط للتبديل للنمط الواقعي)' : 'Mode: Relaxed Family (Tap for Realistic)')
+              }
+              className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-lg active:scale-95 transition cursor-pointer border shadow-2xs ${
+                gameMode === 'realistic'
+                  ? 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+                  : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <span>{gameMode === 'realistic' ? '🚜' : '🌿'}</span>
+              <span className="text-[11px] font-extrabold hidden sm:inline">
+                {gameMode === 'realistic'
+                  ? (lang === 'ar' ? 'واقعي' : 'Realistic')
+                  : (lang === 'ar' ? 'مريح' : 'Relaxed')}
+              </span>
+            </button>
+
+            {onSwitchToDashboard && (
+              <button
+                onClick={onSwitchToDashboard}
+                title={lang === 'ar' ? 'لوحة تحكم وإدارة المزرعة' : 'Farm Management Dashboard'}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-[#2F7D4E] text-white rounded-lg hover:bg-[#25633E] active:scale-95 transition cursor-pointer shadow-xs"
+              >
+                <span>📊</span>
+                <span className="text-[11px] font-bold">{lang === 'ar' ? 'الإدارة' : 'Dashboard'}</span>
+              </button>
+            )}
+
             <button
               onClick={toggleSound}
               title={tr('sound')}
@@ -103,6 +142,21 @@ export const Hud: React.FC = () => {
               <Video className="w-4 h-4" />
             </button>
           )}
+        </div>
+
+        {/* Educational Farm Discovery Strip for all ages */}
+        <div
+          onClick={nextFarmFact}
+          title={lang === 'ar' ? 'اضغط لقراءة معلومة زراعية جديدة' : 'Tap for next fun farm discovery'}
+          className="mt-1.5 py-1.5 px-3 rounded-xl bg-amber-50/70 border border-amber-200/50 flex items-center justify-between gap-2 text-xs text-amber-900 cursor-pointer hover:bg-amber-100/70 active:scale-[0.99] transition select-none"
+        >
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <span className="text-sm shrink-0">💡</span>
+            <span className="truncate text-[11px] font-medium">{farmFact}</span>
+          </div>
+          <span className="text-[10px] text-amber-700/80 font-bold shrink-0">
+            {lang === 'ar' ? 'معلومة أخرى ❯' : 'Next ❯'}
+          </span>
         </div>
       </div>
 

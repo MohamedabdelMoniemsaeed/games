@@ -16,8 +16,23 @@ function getContext(): AudioContext | null {
   return audioCtx;
 }
 
+export type SoundEffect =
+  | 'plant'
+  | 'water'
+  | 'harvest'
+  | 'coin'
+  | 'error'
+  | 'levelup'
+  | 'feed'
+  | 'collect'
+  | 'moo'
+  | 'cluck'
+  | 'baa'
+  | 'birds'
+  | 'rain_ambient';
+
 export function playSound(
-  name: 'plant' | 'water' | 'harvest' | 'coin' | 'error' | 'levelup' | 'feed' | 'collect',
+  name: SoundEffect,
   soundOn: boolean = true
 ) {
   if (!soundOn) return;
@@ -173,6 +188,133 @@ export function playSound(
         gain.connect(ctx.destination);
         osc.start(now);
         osc.stop(now + 0.15);
+        break;
+      }
+
+      case 'moo': {
+        // Realistic cow moo: dual-formant resonant low-frequency tone
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'sine';
+
+        osc1.frequency.setValueAtTime(130, now);
+        osc1.frequency.exponentialRampToValueAtTime(105, now + 0.65);
+        osc2.frequency.setValueAtTime(132, now);
+        osc2.frequency.exponentialRampToValueAtTime(102, now + 0.65);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(380, now);
+        filter.frequency.linearRampToValueAtTime(260, now + 0.65);
+        filter.Q.value = 4.0;
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.22, now + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.7);
+        osc2.stop(now + 0.7);
+        break;
+      }
+
+      case 'cluck': {
+        // Realistic double cluck for chickens
+        [0, 0.11].forEach((delay) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(420, now + delay);
+          osc.frequency.exponentialRampToValueAtTime(240, now + delay + 0.08);
+          gain.gain.setValueAtTime(0.18, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.08);
+        });
+        break;
+      }
+
+      case 'baa': {
+        // Realistic sheep baa with gentle vibrato (LFO)
+        const osc = ctx.createOscillator();
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        const gain = ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(230, now);
+        osc.frequency.exponentialRampToValueAtTime(195, now + 0.45);
+
+        // 12Hz tremolo/vibrato
+        lfo.frequency.setValueAtTime(12, now);
+        lfoGain.gain.setValueAtTime(18, now);
+        lfo.connect(osc.frequency);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.16, now + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        lfo.start(now);
+        osc.start(now);
+        lfo.stop(now + 0.5);
+        osc.stop(now + 0.5);
+        break;
+      }
+
+      case 'birds': {
+        // Morning songbird chirps
+        [0, 0.08, 0.22, 0.3].forEach((delay, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          const baseFreq = idx % 2 === 0 ? 3200 : 3800;
+          osc.frequency.setValueAtTime(baseFreq, now + delay);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq + 600, now + delay + 0.05);
+          gain.gain.setValueAtTime(0.07, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + delay + 0.05);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.05);
+        });
+        break;
+      }
+
+      case 'rain_ambient': {
+        // Soothing gentle rain drop flurry
+        const bufferSize = ctx.sampleRate * 0.4;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1200;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.4);
         break;
       }
     }
