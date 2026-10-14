@@ -9,11 +9,21 @@ function getContext(): AudioContext | null {
         audioCtx = new AudioCtx();
       }
     }
-    if (audioCtx && audioCtx.state === 'suspended') {
+    if (audioCtx && audioCtx.state === 'suspended' && !document.hidden) {
       audioCtx.resume();
     }
   } catch (_) {}
   return audioCtx;
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && audioCtx && audioCtx.state === 'running') {
+      audioCtx.suspend().catch(() => {});
+    } else if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+  });
 }
 
 export type SoundEffect =

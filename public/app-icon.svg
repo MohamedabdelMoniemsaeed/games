@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stopColor="#43A047" />
+      <stop offset="60%" stopColor="#2E7D32" />
+      <stop offset="100%" stopColor="#1B5E20" />
+    </linearGradient>
+    <linearGradient id="hillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stopColor="#81C784" />
+      <stop offset="100%" stopColor="#388E3C" />
+    </linearGradient>
+    <linearGradient id="sunGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#FFF176" />
+      <stop offset="100%" stopColor="#FBC02D" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base with Rounded App Icon Corners -->
+  <rect width="512" height="512" rx="108" fill="url(#skyGrad)" />
+
+  <!-- Warm Golden Sun -->
+  <circle cx="390" cy="130" r="64" fill="url(#sunGrad)" opacity="0.95" />
+
+  <!-- Rolling Farm Hills -->
+  <path d="M0 340 Q 140 260 290 310 Q 420 350 512 300 L 512 512 L 0 512 Z" fill="url(#hillGrad)" opacity="0.85" />
+  <path d="M0 380 Q 160 330 330 370 Q 440 400 512 370 L 512 512 L 0 512 Z" fill="#2E7D32" />
+
+  <!-- Cozy Red Barn Silhouette -->
+  <g transform="translate(90, 240) scale(1.15)">
+    <!-- Barn base -->
+    <rect x="0" y="30" width="70" height="55" rx="3" fill="#C62828" />
+    <!-- Roof -->
+    <polygon points="-6,30 35,2 76,30" fill="#B71C1C" />
+    <!-- White door and X braces -->
+    <rect x="22" y="45" width="26" height="40" rx="2" fill="#FAFAFA" />
+    <line x1="22" y1="45" x2="48" y2="85" stroke="#C62828" stroke-width="2.5" />
+    <line x1="48" y1="45" x2="22" y2="85" stroke="#C62828" stroke-width="2.5" />
+  </g>
+
+  <!-- Centered Vibrant Golden Plant Sprout / Wheat -->
+  <g transform="translate(256, 320) scale(1.6)">
+    <!-- Stem -->
+    <path d="M0 60 C 0 30, -5 10, -10 -20" stroke="#FFF9C4" stroke-width="6" stroke-linecap="round" fill="none" />
+    <!-- Leaves -->
+    <path d="M-8 0 C -35 -5, -45 -35, -20 -45 C 5 -30, -5 -5, -8 0 Z" fill="#FFF9C4" />
+    <path d="M-4 15 C 25 10, 35 -20, 15 -30 C -5 -20, -2 10, -4 15 Z" fill="#FFF59D" />
+  </g>
+
+  <!-- Happy Holstein Cow Face Badge -->
+  <g transform="translate(340, 310) scale(1.05)">
+    <!-- Head Base -->
+    <ellipse cx="40" cy="40" rx="36" ry="30" fill="#FFFFFF" />
+    <!-- Cow Spots -->
+    <path d="M12 24 Q 28 15 36 28 Q 28 42 16 38 Z" fill="#212121" />
+    <path d="M54 22 Q 68 18 72 32 Q 64 42 50 36 Z" fill="#212121" />
+    <!-- Ears -->
+    <ellipse cx="6" cy="22" rx="12" ry="7" transform="rotate(-25 6 22)" fill="#212121" />
+    <ellipse cx="74" cy="22" rx="12" ry="7" transform="rotate(25 74 22)" fill="#FFFFFF" />
+    <!-- Pink Muzzle -->
+    <ellipse cx="40" cy="52" rx="24" ry="16" fill="#F8BBD0" />
+    <!-- Nostrils -->
+    <circle cx="32" cy="52" r="3" fill="#880E4F" />
+    <circle cx="48" cy="52" r="3" fill="#880E4F" />
+    <!-- Happy Eyes -->
+    <circle cx="28" cy="34" r="3.5" fill="#212121" />
+    <circle cx="52" cy="34" r="3.5" fill="#212121" />
+  </g>
+
+  <!-- Golden Stars Rating accents -->
+  <text x="75" y="115" font-size="34" fill="#FFD54F">⭐</text>
+  <text x="135" y="85" font-size="28" fill="#FFD54F">✨</text>
+</svg>

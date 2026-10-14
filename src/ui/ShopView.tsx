@@ -35,9 +35,11 @@ export const ShopView: React.FC = () => {
     buyUpgrade,
     rewardRefill,
     showToast,
+    lang,
   } = useGame();
 
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
 
   const upgrades: Record<UpgradeType, UpgradeDisplay> = {
     tank: {
@@ -219,6 +221,16 @@ export const ShopView: React.FC = () => {
               {tr('watch')}
             </button>
           </Panel>
+
+          {/* Privacy Policy & Google Play Family Safety link */}
+          <div className="pt-2 text-center">
+            <button
+              onClick={() => setIsPrivacyOpen(true)}
+              className="text-xs text-[#7B857E] hover:text-[#2F7D4E] underline font-medium cursor-pointer transition"
+            >
+              {lang === 'ar' ? '🛡️ سياسة الخصوصية وأمان العائلة (Google Play)' : '🛡️ Privacy Policy & Family Safety'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -228,6 +240,61 @@ export const ShopView: React.FC = () => {
         onWatch={handleWatchAd}
         tr={tr}
       />
+
+      {isPrivacyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 text-[#1E2A22] space-y-3.5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h3 className="text-base font-extrabold flex items-center gap-1.5">
+                <span>🛡️</span>
+                <span>{lang === 'ar' ? 'سياسة الخصوصية وأمان العائلة' : 'Privacy & Family Safety'}</span>
+              </h3>
+              <button
+                onClick={() => setIsPrivacyOpen(false)}
+                className="p-1 rounded-full text-gray-400 hover:bg-gray-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-xs text-[#7B857E] space-y-2.5 leading-relaxed">
+              <p>
+                {lang === 'ar'
+                  ? 'تلتزم لعبة أصدقاء المزرعة (Farm Friends) بأعلى معايير الخصوصية وأمان الأطفال والعائلات وفق متطلبات متجر Google Play وسياسات حماية بيانات الأسرة.'
+                  : 'Farm Friends complies with Google Play Families Policy and strict COPPA / GDPR child privacy requirements.'}
+              </p>
+              <div className="rounded-2xl bg-emerald-50/70 border border-emerald-100 p-3 text-[#2F7D4E] font-medium space-y-1.5 text-[11px]">
+                <div className="flex items-center gap-1.5">
+                  <span>✔</span>
+                  <span>{lang === 'ar' ? 'لا يتم جمع أو تخزين أي بيانات شخصية أو معلومات تعريفية.' : 'Zero personal data collection or behavioral tracking.'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>✔</span>
+                  <span>{lang === 'ar' ? 'حفظ تقدم المزرعة يتم محلياً وبأمان تام على ذاكرة جهازك فقط.' : 'Progress is stored 100% locally on your device.'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>✔</span>
+                  <span>{lang === 'ar' ? 'محتوى آمن ونقي تماماً لجميع الفئات العمرية والأطفال.' : '100% kid-safe, wholesome, and family-friendly.'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>✔</span>
+                  <span>{lang === 'ar' ? 'اللعبة تعمل بالكامل أوفلاين دون الحاجة للاتصال بالإنترنت.' : 'Fully playable offline without continuous internet.'}</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400 text-center">
+                {lang === 'ar' ? 'الإصدار 1.0.0 · معتمدة لمتجر Google Play Store' : 'Version 1.0.0 · Google Play Ready'}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsPrivacyOpen(false)}
+              className="w-full py-2.5 rounded-2xl bg-[#2F7D4E] text-white font-bold text-xs hover:bg-[#25633E] active:scale-95 transition cursor-pointer shadow-sm"
+            >
+              {lang === 'ar' ? 'حسناً، فهمت' : 'Close'}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };
