@@ -9,6 +9,7 @@ import {
   Animal,
   Order,
   Quest,
+  Achievement,
 } from './models';
 import {
   kCrops,
@@ -39,6 +40,87 @@ export const kFarmFacts: Record<'en' | 'ar', string[]> = {
   ],
 };
 
+export const kDefaultAchievements: Achievement[] = [
+  {
+    id: 'first_seed',
+    icon: '🌱',
+    titleAr: 'أول بذرة',
+    titleEn: 'First Seed',
+    descAr: 'ازرع أول بذرة في تربة مزرعتك.',
+    descEn: 'Plant your very first crop in the farm soil.',
+    reward: 25,
+    xp: 35,
+    unlocked: false,
+    progress: 0,
+    target: 1,
+  },
+  {
+    id: 'master_harvester',
+    icon: '🧺',
+    titleAr: 'الحصاد الذهبي',
+    titleEn: 'Golden Harvester',
+    descAr: 'احصد 15 محصولاً ناضجاً بنجاح.',
+    descEn: 'Harvest 15 ripe crops successfully.',
+    reward: 60,
+    xp: 80,
+    unlocked: false,
+    progress: 0,
+    target: 15,
+  },
+  {
+    id: 'animal_lover',
+    icon: '🐔',
+    titleAr: 'مملكة الحيوانات',
+    titleEn: 'Animal Haven',
+    descAr: 'امتلك 3 حيوانات مختلفة ترعاها في حظيرتك.',
+    descEn: 'Have 3 animals in your pasture pen.',
+    reward: 70,
+    xp: 90,
+    unlocked: false,
+    progress: 1,
+    target: 3,
+  },
+  {
+    id: 'crop_rotation_pro',
+    icon: '🔄',
+    titleAr: 'خبير الدورة الزراعية',
+    titleEn: 'Agronomy Master',
+    descAr: 'قم بتبديل صنف المحصول على نفس الحوض لتحسين التربة بنجاح.',
+    descEn: 'Perform crop rotation to restore natural soil fertility.',
+    reward: 45,
+    xp: 60,
+    unlocked: false,
+    progress: 0,
+    target: 1,
+  },
+  {
+    id: 'merchant_orders',
+    icon: '📦',
+    titleAr: 'تاجر القرية المعتمد',
+    titleEn: 'Village Merchant',
+    descAr: 'سلّم 5 طلبيات لزبائن وسكان القرية.',
+    descEn: 'Fulfill 5 customer trade orders.',
+    reward: 80,
+    xp: 110,
+    unlocked: false,
+    progress: 0,
+    target: 5,
+  },
+  {
+    id: 'irrigation_modern',
+    icon: '💦',
+    titleAr: 'الري الحديث',
+    titleEn: 'Smart Irrigation',
+    descAr: 'قم بتركيب الرشاش الآلي لري المزرعة تلقائياً.',
+    descEn: 'Install the automatic sprinkler system.',
+    reward: 100,
+    xp: 150,
+    unlocked: false,
+    progress: 0,
+    target: 1,
+  },
+];
+
 export interface ToastMessage {
   id: string;
   key: string;
@@ -59,6 +141,13 @@ interface GameContextType {
   closeTutorial: () => void;
   pendingLevelUp: number;
   clearLevelUp: () => void;
+  // Achievements & Cloud Save
+  achievements: Achievement[];
+  claimAchievement: (id: string) => void;
+  exportSaveCode: () => string;
+  importSaveCode: (code: string) => { success: boolean; error?: string };
+  cloudSaveTime: string;
+  manualCloudSave: () => void;
   // Time and Season
   clock: number;
   dayCount: number;
@@ -500,6 +589,128 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setExpenseToday((e) => e + amt);
   }, []);
 
+  // Google Play Achievements & Cloud Save System
+  const [achievements, setAchievements] = useState<Achievement[]>(() => {
+    try {
+      const saved = localStorage.getItem('farm_achievements');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return kDefaultAchievements;
+  });
+
+  const [cloudSaveTime, setCloudSaveTime] = useState<string>(() => {
+    try {
+      return localStorage.getItem('cloud_save_time') || new Date().toLocaleTimeString();
+    } catch (_) {
+      return new Date().toLocaleTimeString();
+    }
+  });
+
+  const checkAchievement = useCallback(
+    (id: string, progressDelta?: number) => {
+      setAchievements((prev) => {
+        let changed = false;
+        const updated = prev.map((a) => {
+          if (a.id !== id || a.unlocked) return a;
+          const nextProgress = progressDelta !== undefined ? a.progress + progressDelta : a.target;
+          if (nextProgress >= a.target) {
+            changed = true;
+            playSound('levelup', soundOn);
+            showToast(
+              lang === 'ar'
+                ? `🏆 أوسمة جوجل: تم فتح إنجاز (${a.titleAr})!`
+                : `🏆 Achievement Unlocked: (${a.titleEn})!`
+            );
+            return {
+              ...a,
+              progress: a.target,
+              unlocked: true,
+              unlockedAt: new Date().toLocaleDateString(),
+            };
+          }
+          if (nextProgress !== a.progress) {
+            changed = true;
+            return { ...a, progress: nextProgress };
+          }
+          return a;
+        });
+        if (changed) {
+          try {
+            localStorage.setItem('farm_achievements', JSON.stringify(updated));
+          } catch (_) {}
+        }
+        return updated;
+      });
+    },
+    [soundOn, showToast, lang]
+  );
+
+  const claimAchievement = useCallback(
+    (id: string) => {
+      setAchievements((prev) => {
+        const found = prev.find((a) => a.id === id);
+        if (!found || !found.unlocked || found.reward === 0) return prev;
+        earnCoins(found.reward);
+        playSound('coin', soundOn);
+        showToast(
+          lang === 'ar'
+            ? `استلمت مكافأة الإنجاز +${found.reward} 🪙`
+            : `Claimed +${found.reward} coins!`
+        );
+        const updated = prev.map((a) => (a.id === id ? { ...a, reward: 0 } : a));
+        try {
+          localStorage.setItem('farm_achievements', JSON.stringify(updated));
+        } catch (_) {}
+        return updated;
+      });
+    },
+    [earnCoins, soundOn, showToast, lang]
+  );
+
+  const manualCloudSave = useCallback(() => {
+    const time = new Date().toLocaleTimeString();
+    setCloudSaveTime(time);
+    try {
+      localStorage.setItem('cloud_save_time', time);
+    } catch (_) {}
+    saveToStorage();
+    showToast(
+      lang === 'ar' ? 'تم الحفظ والمزامنة السحابية بنجاح ☁️' : 'Cloud Save synchronized ☁️'
+    );
+    playSound('coin', soundOn);
+  }, [saveToStorage, showToast, lang, soundOn]);
+
+  const exportSaveCode = useCallback((): string => {
+    try {
+      const raw = localStorage.getItem('save_v2') || '{}';
+      return `FARM-${btoa(encodeURIComponent(raw))}`;
+    } catch (_) {
+      return '';
+    }
+  }, []);
+
+  const importSaveCode = useCallback(
+    (code: string): { success: boolean; error?: string } => {
+      try {
+        const clean = code.trim().replace(/^FARM-/, '');
+        const json = decodeURIComponent(atob(clean));
+        const parsed = JSON.parse(json);
+        if (typeof parsed !== 'object' || parsed === null) {
+          return { success: false, error: 'invalid' };
+        }
+        localStorage.setItem('save_v2', json);
+        window.location.reload();
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: 'corrupt' };
+      }
+    },
+    []
+  );
+
   // New day triggers
   const onNewDay = useCallback(
     (curSeason: number, curDayCount: number) => {
@@ -857,6 +1068,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       spendCoins(def.seedCost);
+      const isRotated = plots[i].lastCrop !== null && plots[i].lastCrop !== kCropIndices[t];
       setPlots((prev) => {
         const next = [...prev];
         const p = next[i];
@@ -869,10 +1081,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         return next;
       });
+      checkAchievement('first_seed', 1);
+      if (isRotated) {
+        checkAchievement('crop_rotation_pro', 1);
+      }
       playSound('plant', soundOn);
       return null;
     },
-    [level, coins, spendCoins, soundOn]
+    [level, coins, spendCoins, soundOn, plots, checkAchievement]
   );
 
   const water = useCallback(
@@ -974,10 +1190,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       advanceQuest('harvest', 1);
+      checkAchievement('master_harvester', 1);
       playSound('harvest', soundOn);
       return null;
     },
-    [plots, storedCount, storageCap, advanceQuest, soundOn]
+    [plots, storedCount, storageCap, advanceQuest, soundOn, checkAchievement]
   );
 
   const fertilize = useCallback(
@@ -1051,14 +1268,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       spendCoins(def.cost);
-      setAnimals((prev) => [
-        ...prev,
-        { type: t, fullness: 0, progress: 0, stored: 0, growth: 0, health: 1 },
-      ]);
+      setAnimals((prev) => {
+        const next = [
+          ...prev,
+          { type: t, fullness: 0, progress: 0, stored: 0, growth: 0, health: 1 },
+        ];
+        if (next.length >= 3) {
+          checkAchievement('animal_lover', 3);
+        }
+        return next;
+      });
       playSound('plant', soundOn);
       return null;
     },
-    [level, animals.length, penSize, coins, spendCoins, soundOn]
+    [level, animals.length, penSize, coins, spendCoins, soundOn, checkAchievement]
   );
 
   const buyFeed = useCallback(
@@ -1199,6 +1422,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
       earnCoins(o.reward);
       advanceQuest('deliver', 1);
+      checkAchievement('merchant_orders', 1);
 
       setOrders((prev) => {
         const next = [...prev];
@@ -1207,7 +1431,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return null;
     },
-    [orders, inventory, earnCoins, advanceQuest, level, dayCount, soundOn]
+    [orders, inventory, earnCoins, advanceQuest, level, dayCount, soundOn, checkAchievement]
   );
 
   const upgradeCost = useCallback(
@@ -1275,6 +1499,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           break;
         case 'sprinkler':
           setSprinkler(true);
+          checkAchievement('irrigation_modern', 1);
           break;
         case 'pen':
           setPenSize((p) => p + 1);
@@ -1289,7 +1514,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       playSound('coin', soundOn);
       return null;
     },
-    [upgradeMaxed, upgradeCost, coins, spendCoins, soundOn]
+    [upgradeMaxed, upgradeCost, coins, spendCoins, soundOn, checkAchievement]
   );
 
   const rewardRefill = useCallback(() => {
@@ -1356,6 +1581,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closeTutorial,
         pendingLevelUp,
         clearLevelUp,
+        achievements,
+        claimAchievement,
+        exportSaveCode,
+        importSaveCode,
+        cloudSaveTime,
+        manualCloudSave,
         clock,
         dayCount,
         season,

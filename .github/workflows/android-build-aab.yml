@@ -1,0 +1,91 @@
+name: Android AAB - Build & Package for Google Play
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build bundle type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+permissions:
+  contents: read
+
+jobs:
+  build-aab:
+    name: Build Android App Bundle (.AAB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Install NPM Dependencies
+        run: npm ci || npm install
+
+      - name: Run Automated Unit Tests
+        run: npm test
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Sync Capacitor Android Project
+        run: npx cap sync android
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: chmod +x android/gradlew
+
+      - name: Build Android App Bundle (.aab)
+        working-directory: android
+        run: |
+          if [ "${{ inputs.build_type }}" = "debug" ]; then
+            ./gradlew bundleDebug
+          else
+            ./gradlew bundleRelease || ./gradlew bundleDebug
+          fi
+
+      - name: Locate Generated AAB File
+        id: locate_aab
+        run: |
+          AAB_PATH=$(find android/app/build/outputs/bundle -name "*.aab" | head -n 1)
+          if [ -n "$AAB_PATH" ]; then
+            echo "Found AAB at $AAB_PATH"
+            echo "aab_path=$AAB_PATH" >> "$GITHUB_OUTPUT"
+            mkdir -p release-output
+            cp "$AAB_PATH" release-output/FarmFriends-GooglePlay.aab
+          else
+            echo "::error::No AAB file was found!"
+            exit 1
+          fi
+
+      - name: Upload Google Play AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FarmFriends-GooglePlay-AAB
+          path: release-output/FarmFriends-GooglePlay.aab
+          retention-days: 30
+          if-no-files-found: error

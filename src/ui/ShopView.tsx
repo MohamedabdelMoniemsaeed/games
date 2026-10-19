@@ -40,6 +40,7 @@ export const ShopView: React.FC = () => {
 
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isStoreKitOpen, setIsStoreKitOpen] = useState(false);
 
   const upgrades: Record<UpgradeType, UpgradeDisplay> = {
     tank: {
@@ -222,13 +223,21 @@ export const ShopView: React.FC = () => {
             </button>
           </Panel>
 
-          {/* Privacy Policy & Google Play Family Safety link */}
-          <div className="pt-2 text-center">
+          {/* Google Play Store Kit & Privacy Policy links */}
+          <div className="pt-2 flex flex-col items-center gap-1.5 text-center">
+            <button
+              onClick={() => setIsStoreKitOpen(true)}
+              className="text-xs text-[#2F7D4E] hover:text-[#25633E] font-bold cursor-pointer transition flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 py-1.5 px-3 rounded-xl border border-emerald-200"
+            >
+              <span>📦</span>
+              <span>{lang === 'ar' ? 'حزمة تجهيز النشر في Google Play (الصور والوصف)' : 'Google Play Store Listing Kit & Assets'}</span>
+            </button>
+
             <button
               onClick={() => setIsPrivacyOpen(true)}
               className="text-xs text-[#7B857E] hover:text-[#2F7D4E] underline font-medium cursor-pointer transition"
             >
-              {lang === 'ar' ? '🛡️ سياسة الخصوصية وأمان العائلة (Google Play)' : '🛡️ Privacy Policy & Family Safety'}
+              {lang === 'ar' ? '🛡️ سياسة الخصوصية وأمان العائلة' : '🛡️ Privacy Policy & Family Safety'}
             </button>
           </div>
         </div>
@@ -240,6 +249,203 @@ export const ShopView: React.FC = () => {
         onWatch={handleWatchAd}
         tr={tr}
       />
+
+      {/* Google Play Store Kit Modal */}
+      {isStoreKitOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 text-[#1E2A22] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+              <h3 className="text-base font-extrabold flex items-center gap-2">
+                <span>📦</span>
+                <span>{lang === 'ar' ? 'حزمة النشر على Google Play' : 'Google Play Listing Kit'}</span>
+              </h3>
+              <button
+                onClick={() => setIsStoreKitOpen(false)}
+                className="p-1 rounded-full text-gray-400 hover:bg-gray-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-xs text-[#7B857E] space-y-3.5">
+              {/* Highlight Box: Direct AAB Extraction Guide */}
+              <div className="rounded-2xl border-2 border-amber-300 bg-amber-50/80 p-3.5 space-y-2 text-[#1E2A22]">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">⚡</span>
+                  <h4 className="text-xs font-black text-amber-900">
+                    {lang === 'ar' ? 'طريقة تنزيل ملف AAB الموقّع لمتجر Google Play في دقيقة:' : 'How to get your signed Google Play AAB file in 1 minute:'}
+                  </h4>
+                </div>
+
+                <div className="text-[11px] text-amber-900/90 space-y-1.5 leading-relaxed font-medium">
+                  <div>1. {lang === 'ar' ? 'انسخ رابط اللعبة:' : 'Copy your live game URL:'}</div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      readOnly
+                      value={typeof window !== 'undefined' ? window.location.origin : ''}
+                      className="flex-1 py-1 px-2 rounded-lg bg-white border border-amber-200 text-[10px] font-mono"
+                      dir="ltr"
+                    />
+                    <button
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          navigator.clipboard.writeText(window.location.origin);
+                          showToast(lang === 'ar' ? 'تم نسخ الرابط!' : 'URL copied!');
+                        }
+                      }}
+                      className="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs cursor-pointer shadow-2xs"
+                    >
+                      {lang === 'ar' ? 'نسخ' : 'Copy'}
+                    </button>
+                  </div>
+                  <div>2. {lang === 'ar' ? 'افتح موقع PWABuilder (المعتمد رسمياً من مايكروسوفت وجوجل):' : 'Open PWABuilder.com:'}</div>
+                  <a
+                    href="https://www.pwabuilder.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-black text-white bg-[#2F7D4E] hover:bg-[#25633E] py-1.5 px-3 rounded-xl shadow-2xs"
+                  >
+                    <span>🌐 {lang === 'ar' ? 'فتح موقع PWABuilder ⭧' : 'Open PWABuilder.com ⭧'}</span>
+                  </a>
+                  <div>3. {lang === 'ar' ? 'أو حمّل ملف AAB الجاهز والمستخرج في المجلد الرئيسي مباشرة:' : 'Or download the ready extracted AAB file directly:'}</div>
+                  <a
+                    href="/FarmFriends-release.aab"
+                    download="FarmFriends-release.aab"
+                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-98 text-white font-black text-xs transition cursor-pointer shadow-sm flex items-center justify-center gap-2 mt-1"
+                  >
+                    <span>📥</span>
+                    <span>{lang === 'ar' ? 'تحميل ملف FarmFriends-release.aab مباشرة (2.1 MB)' : 'Download FarmFriends-release.aab (2.1 MB)'}</span>
+                  </a>
+                </div>
+              </div>
+
+              <p className="leading-relaxed">
+                {lang === 'ar'
+                  ? 'تم تجهيز جميع الصور والنصوص وروابط الخصوصية المطلوبة لرفع اللعبة على Google Play Console بنجاح:'
+                  : 'All images, metadata, and privacy links required by Google Play Console are ready:'}
+              </p>
+
+              {/* 1. App Icon 512x512 */}
+              <div className="rounded-2xl border border-gray-200 p-3 bg-gray-50 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <img src="/pwa-512x512.png" alt="512x512 Icon" className="w-12 h-12 rounded-xl border border-gray-200" />
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2A22]">
+                      {lang === 'ar' ? 'أيقونة المتجر الرسمية (512x512)' : 'Store Icon (512x512 PNG)'}
+                    </h4>
+                    <span className="text-[10px] text-gray-500">512x512 px · PNG</span>
+                  </div>
+                </div>
+                <a
+                  href="/pwa-512x512.png"
+                  download="app-icon-512x512.png"
+                  className="py-1.5 px-3 rounded-xl bg-white border border-gray-200 text-[#2F7D4E] font-bold text-xs hover:bg-emerald-50 transition"
+                >
+                  {lang === 'ar' ? 'تحميل ⤓' : 'Download ⤓'}
+                </a>
+              </div>
+
+              {/* 2. Feature Graphic 1024x500 */}
+              <div className="rounded-2xl border border-gray-200 p-3 bg-gray-50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#1E2A22]">
+                    {lang === 'ar' ? 'بانر المتجر البارز (1024x500 Feature Graphic)' : 'Feature Graphic (1024x500)'}
+                  </h4>
+                  <a
+                    href="/feature-graphic.png"
+                    download="feature-graphic-1024x500.png"
+                    className="py-1 px-2.5 rounded-xl bg-white border border-gray-200 text-[#2F7D4E] font-bold text-[11px] hover:bg-emerald-50 transition"
+                  >
+                    {lang === 'ar' ? 'تحميل ⤓' : 'Download ⤓'}
+                  </a>
+                </div>
+                <img src="/feature-graphic.png" alt="Feature Graphic" className="w-full h-24 object-cover rounded-xl border border-gray-200" />
+              </div>
+
+              {/* 3. Privacy Policy URL */}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-1.5">
+                <h4 className="text-xs font-bold text-emerald-900">
+                  {lang === 'ar' ? '🔗 رابط سياسة الخصوصية (Privacy Policy URL):' : '🔗 Privacy Policy URL for Console:'}
+                </h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/privacy.html`}
+                    className="flex-1 py-1 px-2 bg-white rounded-lg border border-emerald-200 text-[11px] font-mono text-[#1E2A22]"
+                    dir="ltr"
+                  />
+                  <button
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        navigator.clipboard.writeText(`${window.location.origin}/privacy.html`);
+                        showToast(lang === 'ar' ? 'تم نسخ الرابط!' : 'URL Copied!');
+                      }
+                    }}
+                    className="py-1 px-2.5 rounded-lg bg-[#2F7D4E] text-white font-bold text-xs hover:bg-[#25633E] active:scale-95 transition cursor-pointer"
+                  >
+                    {lang === 'ar' ? 'نسخ' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Play Store Texts Copy */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-[#1E2A22]">
+                  {lang === 'ar' ? '📝 نصوص المتجر الجاهزة للنسخ:' : '📝 Pre-written Store Descriptions:'}
+                </h4>
+                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
+                  <div className="flex justify-between items-center text-[11px] font-bold text-[#1E2A22]">
+                    <span>{lang === 'ar' ? 'عنوان اللعبة' : 'Title'}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(lang === 'ar' ? 'أصدقاء المزرعة السعيدة - Farm Friends' : 'Farm Friends - Relaxing Farm Game');
+                        showToast(lang === 'ar' ? 'تم نسخ العنوان!' : 'Title copied!');
+                      }}
+                      className="text-emerald-700 underline cursor-pointer"
+                    >
+                      {lang === 'ar' ? 'نسخ' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[#7B857E]">
+                    {lang === 'ar' ? 'أصدقاء المزرعة السعيدة - Farm Friends' : 'Farm Friends - Relaxing Farm Game'}
+                  </p>
+                </div>
+
+                <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
+                  <div className="flex justify-between items-center text-[11px] font-bold text-[#1E2A22]">
+                    <span>{lang === 'ar' ? 'الوصف القصير (80 حرف)' : 'Short Description'}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          lang === 'ar'
+                            ? 'لعبة مزرعة تفاعلية سعيدة - ازرع المحاصيل واعتنِ بالحيوانات وتاجر بالقرية!'
+                            : 'Delightful family farm game - grow crops, care for cute animals, and trade!'
+                        );
+                        showToast(lang === 'ar' ? 'تم نسخ الوصف القصير!' : 'Short description copied!');
+                      }}
+                      className="text-emerald-700 underline cursor-pointer"
+                    >
+                      {lang === 'ar' ? 'نسخ' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[#7B857E]">
+                    {lang === 'ar'
+                      ? 'لعبة مزرعة تفاعلية سعيدة - ازرع المحاصيل واعتنِ بالحيوانات وتاجر بالقرية!'
+                      : 'Delightful family farm game - grow crops, care for cute animals, and trade!'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsStoreKitOpen(false)}
+              className="w-full py-2.5 rounded-2xl bg-[#2F7D4E] text-white font-bold text-xs hover:bg-[#25633E] active:scale-95 transition cursor-pointer shadow-sm"
+            >
+              {lang === 'ar' ? 'إغلاق' : 'Close'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {isPrivacyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-fade-in">

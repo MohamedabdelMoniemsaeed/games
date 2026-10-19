@@ -53,3 +53,18 @@ export interface Quest {
   progress: number;
   claimed: boolean;
 }
+
+export interface Achievement {
+  id: string;
+  icon: string;
+  titleAr: string;
+  titleEn: string;
+  descAr: string;
+  descEn: string;
+  reward: number;
+  xp: number;
+  unlocked: boolean;
+  unlockedAt?: string;
+  progress: number;
+  target: number;
+}

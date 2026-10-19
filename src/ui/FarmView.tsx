@@ -388,7 +388,7 @@ const PlotTile: React.FC<{
   const isReady = p.crop !== null && p.progress >= 1.0;
   const isWilted = p.crop !== null && p.water <= 0;
 
-  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getSoilBackground = () => {
     // Rich earthy soil texture with darker moist tones
